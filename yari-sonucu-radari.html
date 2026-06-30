@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B1F17">
+<title>Yarı Sonucu Radarı</title>
+<style>
+  :root{
+    --bg:#0B1F17; --bg2:#0F241A; --panel:#11291E; --panel2:#163325;
+    --chalk:#EAF2E9; --dim:#8FA89B; --line:rgba(234,242,233,.12);
+    --amber:#F5C45A; --amber2:#F2B441;
+    --mint:#5BD6A6;  /* 1/0 — ev önde → berabere */
+    --coral:#F2795B; /* 2/0 — dep önde → berabere */
+    --violet:#A99CF5;/* 1/2 — ev önde → dep çevirir */
+    --sky:#57C7E0;   /* 2/1 — dep önde → ev çevirir */
+    --bad:#E5604D; --warn:#E6B450; --ok:#5BD6A6;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      radial-gradient(120% 60% at 50% -10%, #143324 0%, transparent 55%),
+      var(--bg);
+    color:var(--chalk); font-family:var(--sans);
+    -webkit-font-smoothing:antialiased; line-height:1.45;
+    padding:max(18px,env(safe-area-inset-top)) 16px calc(34px + env(safe-area-inset-bottom));
+  }
+  .wrap{max-width:480px;margin:0 auto}
+
+  /* Header */
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.32em;color:var(--dim);
+    text-transform:uppercase;display:flex;align-items:center;gap:9px;margin:2px 0 8px}
+  .eyebrow::before{content:"";width:18px;height:1px;background:var(--amber)}
+  h1{font-size:27px;line-height:1.08;margin:0 0 6px;font-weight:800;letter-spacing:-.01em}
+  h1 b{color:var(--amber)}
+  .sub{color:var(--dim);font-size:13.5px;margin:0 0 20px;max-width:38ch}
+
+  /* Slip */
+  .slip{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
+  .cell{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:11px 10px 12px;text-align:center;position:relative;overflow:hidden}
+  .cell .tag{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--dim)}
+  .cell .who{font-size:10.5px;color:var(--dim);opacity:.8;margin-top:1px}
+  .cell input{
+    width:100%;border:0;background:transparent;color:var(--chalk);
+    font-family:var(--mono);font-size:30px;font-weight:700;text-align:center;
+    margin-top:6px;padding:0;letter-spacing:.01em;outline:none;
+  }
+  .cell input::placeholder{color:#3f5a4c}
+  .cell:focus-within{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber) inset}
+  .cell.c1:focus-within{border-color:var(--mint);box-shadow:0 0 0 1px var(--mint) inset}
+  .cell.c2:focus-within{border-color:var(--coral);box-shadow:0 0 0 1px var(--coral) inset}
+
+  /* Controls */
+  .ctl{margin:0 0 8px}
+  .ctl .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--dim);
+    text-transform:uppercase;margin:0 2px 7px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{font-family:var(--mono);font-size:13px;color:var(--chalk);
+    background:var(--panel);border:1px solid var(--line);border-radius:999px;
+    padding:9px 14px;min-height:40px;display:inline-flex;align-items:center;
+    cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;transition:.12s}
+  .chip[aria-pressed="true"]{background:var(--amber);color:#1a1205;border-color:var(--amber);font-weight:700}
+  .chip.lig[aria-pressed="true"]{background:var(--chalk);color:#10241a;border-color:var(--chalk)}
+
+  .tolgrid{display:grid;grid-template-columns:auto 1fr;gap:8px 8px;align-items:center;
+    background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:13px 12px;margin-bottom:14px}
+  .tolgrid .rl{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--chalk)}
+  .tolgrid .chips{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+  .tolgrid .chip{padding:7px 2px;min-height:34px;font-size:12px;justify-content:center}
+  .tolgrid .chip[aria-pressed="true"]{background:var(--mint);color:#06231c;border-color:var(--mint)}
+
+  .presets{display:flex;flex-direction:column;gap:7px;margin:14px 0 22px}
+  .pre{display:flex;align-items:center;gap:10px;background:var(--bg2);
+    border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:11px;
+    padding:10px 13px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .pre.m{border-left-color:var(--mint)} .pre.c{border-left-color:var(--coral)}
+  .pre .k{font-family:var(--mono);font-weight:700;font-size:13px;letter-spacing:.06em}
+  .pre.m .k{color:var(--mint)} .pre.c .k{color:var(--coral)}
+  .pre .o{font-family:var(--mono);font-size:14px;color:var(--chalk);margin-left:auto}
+  .pre .arr{color:var(--dim);font-size:14px}
+
+  /* Board */
+  .board{position:relative;background:linear-gradient(180deg,var(--panel) 0%,var(--bg2) 100%);
+    border:1px solid var(--line);border-radius:18px;padding:18px 16px 16px;overflow:hidden}
+  .pitch{position:absolute;inset:0;pointer-events:none;opacity:.5}
+  .pitch i{position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--line);transform:translateX(-50%)}
+  .pitch b{position:absolute;left:50%;top:50%;width:84px;height:84px;border:1px solid var(--line);
+    border-radius:50%;transform:translate(-50%,-50%)}
+  .board > *{position:relative}
+
+  .count{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+  .count .n{font-family:var(--mono);font-size:46px;font-weight:800;line-height:1;color:var(--amber);letter-spacing:-.02em}
+  .count .nlbl{font-size:13px;color:var(--dim)}
+  .badge{margin-left:auto;font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+    padding:5px 10px;border-radius:999px;border:1px solid;white-space:nowrap}
+  .badge.ok{color:var(--ok);border-color:rgba(91,214,166,.4);background:rgba(91,214,166,.08)}
+  .badge.warn{color:var(--warn);border-color:rgba(230,180,80,.4);background:rgba(230,180,80,.08)}
+  .badge.bad{color:var(--bad);border-color:rgba(229,96,77,.4);background:rgba(229,96,77,.08)}
+  .matchline{font-family:var(--mono);font-size:13px;color:var(--dim);margin-bottom:16px}
+  .matchline b{color:var(--chalk)}
+
+  .res{display:flex;flex-direction:column;gap:12px}
+  .stat{background:var(--bg);border:1px solid var(--line);border-radius:13px;padding:13px 14px}
+  .stat .top{display:flex;align-items:baseline;gap:8px;margin-bottom:9px}
+  .stat .key{font-family:var(--mono);font-weight:700;font-size:15px;letter-spacing:.06em}
+  .stat.m .key{color:var(--mint)} .stat.c .key{color:var(--coral)}
+  .stat.v .key{color:var(--violet)} .stat.s .key{color:var(--sky)}
+  .stat .desc{font-size:11.5px;color:var(--dim)}
+  .stat .pct{margin-left:auto;font-family:var(--mono);font-weight:800;font-size:26px;line-height:1}
+  .stat.m .pct{color:var(--mint)} .stat.c .pct{color:var(--coral)}
+  .stat.v .pct{color:var(--violet)} .stat.s .pct{color:var(--sky)}
+  .stat .sub{font-family:var(--mono);font-size:11.5px;color:var(--dim);margin-left:8px}
+
+  .bar{height:8px;border-radius:6px;background:rgba(234,242,233,.07);position:relative;overflow:hidden}
+  .bar .fill{height:100%;border-radius:6px;width:0;transition:width .5s cubic-bezier(.2,.8,.2,1)}
+  .stat.m .fill{background:linear-gradient(90deg,var(--mint),#3fbf8c)}
+  .stat.c .fill{background:linear-gradient(90deg,var(--coral),#d85f44)}
+  .stat.v .fill{background:linear-gradient(90deg,var(--violet),#7d6fd6)}
+  .stat.s .fill{background:linear-gradient(90deg,var(--sky),#3aa6c0)}
+  .bar .base{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--amber);opacity:.85}
+  .meta{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:7px}
+
+  .empty{font-family:var(--mono);font-size:14px;color:var(--dim);padding:14px 2px;line-height:1.6}
+  .empty b{color:var(--amber)}
+
+  /* breakdown */
+  details{margin-top:14px;background:var(--bg2);border:1px solid var(--line);border-radius:13px}
+  summary{list-style:none;cursor:pointer;padding:13px 15px;font-family:var(--mono);font-size:12.5px;
+    letter-spacing:.1em;color:var(--dim);text-transform:uppercase;display:flex;align-items:center;justify-content:space-between}
+  summary::-webkit-details-marker{display:none}
+  summary .x{transition:.2s}
+  details[open] summary .x{transform:rotate(45deg)}
+  .grid9{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);
+    border-top:1px solid var(--line);border-radius:0 0 13px 13px;overflow:hidden}
+  .g{background:var(--bg2);padding:11px 8px;text-align:center}
+  .g .gk{font-family:var(--mono);font-size:12px;color:var(--dim);letter-spacing:.08em}
+  .g .gv{font-family:var(--mono);font-size:18px;font-weight:700;margin-top:3px}
+  .g .gp{font-family:var(--mono);font-size:11px;color:var(--dim)}
+  .g.hot .gv{color:var(--amber)}
+
+  .foot{color:var(--dim);font-size:11.5px;line-height:1.7;margin-top:22px;
+    border-top:1px solid var(--line);padding-top:14px}
+  .foot b{color:#b9ccc1}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Yarı sonucu · ham oran radarı</div>
+  <h1>İlk yarı önde — ikinci yarı <b>ne oldu?</b></h1>
+  <p class="sub">Bir maçın 1 / X / 2 oranını gir. ±0,05 toleransla geçmiş ~14.664 maçtan aynı oran cebini bulur; ilk yarıyı önde kapatan tarafın ikinci yarıda ne yaptığını verir — <b>berabere</b> (1/0, 2/0) ya da <b>geri dönüş</b> (1/2, 2/1).</p>
+
+  <div class="slip">
+    <label class="cell c1"><div class="tag">1</div><div class="who">Ev kazanır</div>
+      <input id="i1" inputmode="decimal" placeholder="1.90" aria-label="Ev oranı"></label>
+    <label class="cell"><div class="tag">X</div><div class="who">Berabere</div>
+      <input id="ix" inputmode="decimal" placeholder="2.85" aria-label="Beraberlik oranı"></label>
+    <label class="cell c2"><div class="tag">2</div><div class="who">Deplasman</div>
+      <input id="i2" inputmode="decimal" placeholder="3.25" aria-label="Deplasman oranı"></label>
+  </div>
+
+  <div class="tolgrid">
+    <div class="rl">1 ±</div><div class="chips" id="t1"></div>
+    <div class="rl">X ±</div><div class="chips" id="tx"></div>
+    <div class="rl">2 ±</div><div class="chips" id="t2"></div>
+  </div>
+  <div class="ctl">
+    <div class="lbl">Lig</div>
+    <div class="chips" id="lig">
+      <button class="chip lig" data-l="-1" aria-pressed="true">Tümü</button>
+      <button class="chip lig" data-l="5" aria-pressed="false">Türkiye</button>
+      <button class="chip lig" data-l="2" aria-pressed="false">İngiltere</button>
+      <button class="chip lig" data-l="3" aria-pressed="false">İspanya</button>
+      <button class="chip lig" data-l="4" aria-pressed="false">İtalya</button>
+      <button class="chip lig" data-l="1" aria-pressed="false">Fransa</button>
+      <button class="chip lig" data-l="0" aria-pressed="false">Almanya</button>
+    </div>
+  </div>
+
+  <div class="board">
+    <div class="pitch"><i></i><b></b></div>
+    <div class="count"><span class="n" id="bigN">—</span><span class="nlbl" id="nlbl">oran girince hesaplar</span>
+      <span class="badge warn" id="badge" style="display:none"></span></div>
+    <div class="matchline" id="matchline"></div>
+    <div id="results"></div>
+  </div>
+
+  <details>
+    <summary>Tüm 9 kombinasyon <span class="x">＋</span></summary>
+    <div class="grid9" id="grid9"></div>
+  </details>
+
+  <div class="foot">
+    <b>Nasıl okunur.</b> Yüzde = o oran cebinde ilgili kombinasyonla biten maç oranı. <b>Kat</b> = bu ligdeki genel ortalamanın kaç misli. <b>Alt</b> = %95 güven alt sınırı; az maçta yüzde şişebilir, asıl güvenilecek değer budur. Amber çizgi = ligin genel ortalaması. <b>1/0, 2/0</b> = önde olan taraf ikinci yarıyı berabere kapatmış; <b>1/2, 2/1</b> = rakip ikinci yarıda çevirmiş.<br><br>
+    Örneklem küçükse (kırmızı/sarı rozet) sonuç şans olabilir. Oranlar olasılığı zaten fiyatlar; bu geçmiş frekanstır, garanti değil. Veri anlık görüntüdür; yeni maçlar otomatik eklenmez.
+  </div>
+</div>
+
+<script>
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQsINVh-PeT361RicXci50mCMOCD_R072i3b1bHuXJ38_Pjd-CJBschmqQp6cKaY33G-cpwFq6UHwG2/pub?gid=1304361413&single=true&output=csv";
+let RAW = [];
+let loaded = false;
+const LIGMAP = {almanya:0,fransa:1,ingiltere:2,"i̇ngiltere":2,ispanya:3,"i̇spanya":3,italya:4,"i̇talya":4,turkiye:5,"türkiye":5};
+function ligIdx(s){if(s==null)return -1;const k=(''+s).trim().toLowerCase();return (k in LIGMAP)?LIGMAP[k]:-1;}
+function parseCSV(text){
+  const lines=text.split(/\r?\n/).filter(l=>l.length);
+  lines.shift();
+  const out=[];
+  for(const line of lines){
+    const c=line.split(',');
+    if(c.length<8)continue;
+    const o1=parseFloat(c[1]),ox=parseFloat(c[2]),o2=parseFloat(c[3]);
+    const ie=parseInt(c[4],10),id=parseInt(c[5],10),me=parseInt(c[6],10),md=parseInt(c[7],10);
+    if(![o1,ox,o2].every(Number.isFinite)||![ie,id,me,md].every(Number.isFinite))continue;
+    const r1=ie>id?1:(ie<id?2:0), r2=me>md?1:(me<md?2:0);
+    out.push([Math.round(o1*100),Math.round(ox*100),Math.round(o2*100),r1,r2,ligIdx(c[0])]);
+  }
+  return out;
+}
+async function loadData(){
+  $('bigN').textContent='…';$('nlbl').textContent='veri yükleniyor';
+  try{
+    const res=await fetch(CSV_URL+'&_='+Date.now(),{cache:'no-store'});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    RAW=parseCSV(await res.text());
+    if(!RAW.length)throw new Error('boş veri');
+    loaded=true;$('bigN').textContent='—';$('nlbl').textContent='oran girince hesaplar';compute();
+  }catch(err){
+    $('bigN').textContent='!';$('nlbl').textContent='veri yüklenemedi — interneti kontrol edip yenile';
+    $('results').innerHTML='<div class="empty">'+err.message+'</div>';
+  }
+}
+const O1=0,OX=1,O2=2,H1=3,H2=4,LG=5;
+const state={t1:5,tx:5,t2:5,lig:-1};
+const $=id=>document.getElementById(id);
+const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+function parse(v){if(!v)return null;v=(''+v).replace(',','.').trim();const f=parseFloat(v);return isFinite(f)?f:null;}
+function wlb(k,n){if(!n)return 0;const z=1.96,p=k/n,d=1+z*z/n,c=p+z*z/(2*n),m=z*Math.sqrt((p*(1-p)+z*z/(4*n))/n);return Math.max(0,(c-m)/d)*100;}
+
+function animateNum(el,to,suffix='',dec=0){
+  if(reduce){el.textContent=to.toFixed(dec)+suffix;return;}
+  const dur=380,t0=performance.now();
+  (function step(t){let p=Math.min(1,(t-t0)/dur);p=1-Math.pow(1-p,3);
+    el.textContent=(to*p).toFixed(dec)+suffix;
+    if(p<1)requestAnimationFrame(step);})(t0);
+}
+
+[['t1','t1'],['tx','tx'],['t2','t2']].forEach(([id,key])=>{
+  const box=$(id);
+  [5,6,7,8,9,10].forEach(v=>{
+    const b=document.createElement('button');b.className='chip';b.dataset.v=v;
+    b.setAttribute('aria-pressed',v===5);b.textContent='0,'+(v<10?'0'+v:v);box.appendChild(b);
+  });
+  box.addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;
+    state[key]=+b.dataset.v;[...box.children].forEach(c=>c.setAttribute('aria-pressed',c===b));compute();});
+});
+
+function baseSet(){return state.lig<0?RAW:RAW.filter(r=>r[LG]===state.lig);}
+
+function compute(){
+  if(!loaded)return;
+  const a=parse($('i1').value),x=parse($('ix').value),c=parse($('i2').value);
+  const board=$('results'),grid=$('grid9');
+  if(a===null||x===null||c===null){
+    $('bigN').textContent='—';$('nlbl').textContent='üç oranı da gir';
+    $('badge').style.display='none';$('matchline').textContent='';
+    board.innerHTML='';grid.innerHTML='';return;
+  }
+  const a100=Math.round(a*100),x100=Math.round(x*100),c100=Math.round(c*100),t1=state.t1,tx=state.tx,t2=state.t2;
+  const set=baseSet();
+  let N=0;const cnt={};let baseN=set.length,b10=0,b20=0,b12=0,b21=0;
+  for(const r of set){
+    if(r[H1]===1&&r[H2]===0)b10++;else if(r[H1]===2&&r[H2]===0)b20++;
+    else if(r[H1]===1&&r[H2]===2)b12++;else if(r[H1]===2&&r[H2]===1)b21++;
+    if(Math.abs(r[O1]-a100)<=t1&&Math.abs(r[OX]-x100)<=tx&&Math.abs(r[O2]-c100)<=t2){
+      N++;const key=r[H1]+'/'+r[H2];cnt[key]=(cnt[key]||0)+1;
+    }
+  }
+  const base10=baseN?b10/baseN*100:0, base20=baseN?b20/baseN*100:0,
+        base12=baseN?b12/baseN*100:0, base21=baseN?b21/baseN*100:0;
+
+  // header
+  $('matchline').innerHTML='Cep: <b>'+a.toFixed(2)+'</b> ±'+(t1/100).toFixed(2).replace('.',',')
+    +' · <b>'+x.toFixed(2)+'</b> ±'+(tx/100).toFixed(2).replace('.',',')
+    +' · <b>'+c.toFixed(2)+'</b> ±'+(t2/100).toFixed(2).replace('.',',');
+  animateNum($('bigN'),N,'',0);
+  $('nlbl').textContent='maç bu cepte';
+
+  const badge=$('badge');badge.style.display='inline-block';
+  if(N===0){badge.style.display='none';}
+  else if(N<10){badge.className='badge bad';badge.textContent='çok az maç';}
+  else if(N<25){badge.className='badge warn';badge.textContent='temkinli';}
+  else{badge.className='badge ok';badge.textContent='yeterli örneklem';}
+
+  if(N===0){
+    board.innerHTML='<div class="empty">Bu oran cebinde geçmiş maç yok. <b>Toleransı ±0,10</b>’a genişlet ya da oranları en yakın değere yuvarla.</div>';
+    grid.innerHTML='';return;
+  }
+
+  const cards=[
+    {cls:'m',key:'1/0',desc:'ev önde → berabere',k:cnt['1/0']||0,base:base10},
+    {cls:'v',key:'1/2',desc:'ev önde → dep çevirir',k:cnt['1/2']||0,base:base12},
+    {cls:'c',key:'2/0',desc:'dep önde → berabere',k:cnt['2/0']||0,base:base20},
+    {cls:'s',key:'2/1',desc:'dep önde → ev çevirir',k:cnt['2/1']||0,base:base21},
+  ];
+  board.innerHTML=cards.map(d=>{
+    const rate=d.k/N*100, lb=wlb(d.k,N), kat=d.base>0?rate/d.base:0;
+    const w=Math.min(100,rate/30*100), bw=Math.min(100,d.base/30*100);
+    return `<div class="stat ${d.cls}">
+      <div class="top"><span class="key">${d.key}</span><span class="desc">${d.desc}</span>
+        <span class="pct">%${rate.toFixed(1)}</span><span class="sub">${d.k}/${N}</span></div>
+      <div class="bar"><div class="fill" style="width:${w}%"></div><div class="base" style="left:${bw}%"></div></div>
+      <div class="meta"><span>kat: <b style="color:var(--chalk)">${kat.toFixed(1)}×</b> &nbsp; alt: %${lb.toFixed(1)}</span><span>ortalama %${d.base.toFixed(1)}</span></div>
+    </div>`;
+  }).join('');
+
+  // 9-grid
+  const order=['1/1','1/0','1/2','0/1','0/0','0/2','2/1','2/0','2/2'];
+  const lab={'1/1':'1/1','1/0':'1/0','1/2':'1/2','0/1':'0/1','0/0':'0/0','0/2':'0/2','2/1':'2/1','2/0':'2/0','2/2':'2/2'};
+  grid.innerHTML=order.map(k=>{
+    const v=cnt[k]||0,p=N?v/N*100:0,hot=(k==='1/0'||k==='2/0'||k==='1/2'||k==='2/1');
+    return `<div class="g ${hot?'hot':''}"><div class="gk">${lab[k]}</div><div class="gv">${v}</div><div class="gp">%${p.toFixed(1)}</div></div>`;
+  }).join('');
+}
+
+// wiring
+['i1','ix','i2'].forEach(id=>$(id).addEventListener('input',compute));
+$('lig').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;
+  state.lig=+b.dataset.l;[...$('lig').children].forEach(c=>c.setAttribute('aria-pressed',c===b));compute();});
+loadData();
+</script>
+</body>
+</html>
