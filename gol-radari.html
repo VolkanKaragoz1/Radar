@@ -56,12 +56,13 @@
   .chip.lig[aria-pressed="true"]{background:var(--chalk);color:#10241a;border-color:var(--chalk)}
   .chip.fh[aria-pressed="true"]{background:var(--amber);color:#1a1205;border-color:var(--amber)}
   .chip.fhmore[aria-pressed="true"]{background:var(--fhmore);color:#1a0a2e;border-color:var(--fhmore)}
+  .chip.fhall[aria-pressed="true"]{background:var(--chalk);color:#10241a;border-color:var(--chalk)}
 
   .tolgrid{display:grid;grid-template-columns:auto 1fr;gap:8px 8px;align-items:center;
     background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:13px 12px;margin-bottom:14px}
   .tolgrid .rl{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--chalk)}
-  .tolgrid .chips{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
-  .tolgrid .chip{padding:7px 2px;min-height:34px;font-size:12px;justify-content:center}
+  .tolgrid .chips{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+  .tolgrid .chip{padding:8px 2px;min-height:36px;font-size:13px;justify-content:center}
   .tolgrid .chip[aria-pressed="true"]{background:var(--u05);color:#06231c;border-color:var(--u05)}
 
   .board{position:relative;background:linear-gradient(180deg,var(--panel) 0%,var(--bg2) 100%);
@@ -118,6 +119,19 @@
   .mrow .mr{font-family:var(--mono);font-size:12px;color:var(--dim);white-space:nowrap;flex-shrink:0}
   .mrow .mr b{color:var(--u05)}
 
+  .section-lbl{font-family:var(--mono);font-size:12px;letter-spacing:.16em;color:var(--chalk);
+    text-transform:uppercase;margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  .crow{background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:9px 12px;margin-bottom:7px}
+  .crow .ctop{display:flex;align-items:baseline;gap:8px;margin-bottom:7px}
+  .crow .cek{font-family:var(--mono);font-weight:700;font-size:14px}
+  .crow .ced{font-size:11px;color:var(--dim)}
+  .crow .cep{margin-left:auto;font-family:var(--mono);font-weight:800;font-size:20px;line-height:1}
+  .crow .cec{font-family:var(--mono);font-size:11px;color:var(--dim)}
+  .crow .cbar{height:6px;border-radius:5px;background:rgba(234,242,233,.07);position:relative;overflow:hidden;margin-bottom:6px}
+  .crow .cfill{height:100%;border-radius:5px;transition:width .4s cubic-bezier(.2,.8,.2,1)}
+  .crow .cbase{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--chalk);opacity:.5}
+  .crow .cmeta{font-family:var(--mono);font-size:10.5px;color:var(--dim)}
+
   .foot{color:var(--dim);font-size:11.5px;line-height:1.7;margin-top:22px;border-top:1px solid var(--line);padding-top:14px}
   .foot b{color:#b9ccc1}
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -147,6 +161,7 @@
   <div class="ctl">
     <div class="lbl">İlk yarı gol</div>
     <div class="chips" id="fh">
+      <button class="chip fh fhall" data-f="all" aria-pressed="false">Tüm maçlar</button>
       <button class="chip fh" data-f="b" aria-pressed="true">0 + 1</button>
       <button class="chip fh" data-f="0" aria-pressed="false">0 gol</button>
       <button class="chip fh" data-f="1" aria-pressed="false">1 gol</button>
@@ -227,7 +242,7 @@ function animateNum(el,to,dec){if(reduce){el.textContent=to.toFixed(dec);return;
 // build tolerance chips
 [['t1','t1'],['tx','tx'],['t2','t2']].forEach(([id,key])=>{
   const box=$(id);
-  [5,6,7,8,9,10].forEach(v=>{
+  [3,4,5,6,7,8,9,10].forEach(v=>{
     const b=document.createElement('button');b.className='chip';b.dataset.v=v;
     b.setAttribute('aria-pressed',v===5);b.textContent='0,'+(v<10?'0'+v:v);box.appendChild(b);
   });
@@ -235,7 +250,7 @@ function animateNum(el,to,dec){if(reduce){el.textContent=to.toFixed(dec);return;
     state[key]=+b.dataset.v;[...box.children].forEach(c=>c.setAttribute('aria-pressed',c===b));compute();});
 });
 
-function fhMatch(r){const f=state.fh;if(f==='b')return r[FH]<=1;if(f==='3p')return r[FH]>=3;return r[FH]===+f;}
+function fhMatch(r){const f=state.fh;if(f==='all')return true;if(f==='b')return r[FH]<=1;if(f==='3p')return r[FH]>=3;return r[FH]===+f;}
 function baseSet(){return state.lig<0?RAW:RAW.filter(r=>r[LG]===state.lig);}
 
 function compute(){
@@ -250,13 +265,16 @@ function compute(){
   const t1=state.t1,tx=state.tx,t2=state.t2;
   const set=baseSet();
   let N=0,sum=0,bN=0,b05=0,b15=0,b25=0;
+  let biyKG=0,biy05=0,biy15=0,bmsKG=0,bms05=0,bms15=0,bms25=0,bms35=0;
   const hist=[0,0,0,0,0]; // 0,1,2,3,4+
   let o05=0,o15=0,o25=0;
   const matched=[];
   for(const r of set){
     if(!fhMatch(r))continue;
-    bN++;const sh=r[SH];
+    bN++;const sh=r[SH],fhG=r[IE]+r[ID],msG=r[ME]+r[MD];
     if(sh>=1)b05++;if(sh>=2)b15++;if(sh>=3)b25++;
+    if(r[IE]>=1&&r[ID]>=1)biyKG++;if(fhG>=1)biy05++;if(fhG>=2)biy15++;
+    if(r[ME]>=1&&r[MD]>=1)bmsKG++;if(msG>=1)bms05++;if(msG>=2)bms15++;if(msG>=3)bms25++;if(msG>=4)bms35++;
     if(Math.abs(r[O1]-A)<=t1&&Math.abs(r[OX]-X)<=tx&&Math.abs(r[O2]-C)<=t2){
       N++;sum+=sh;hist[Math.min(sh,4)]++;matched.push(r);
       if(sh>=1)o05++;if(sh>=2)o15++;if(sh>=3)o25++;
@@ -295,6 +313,25 @@ function compute(){
     </div>`;
   }).join('');
 
+  const cnt=fn=>matched.reduce((a,r)=>a+(fn(r)?1:0),0);
+  const crow=(key,desc,k,baseC,accent)=>{
+    const rate=k/N*100,lb=wlb(k,N),base=bN?baseC/bN*100:0,kat=base>0?rate/base:0;
+    return `<div class="crow">
+      <div class="ctop"><span class="cek" style="color:${accent}">${key}</span><span class="ced">${desc}</span><span class="cep" style="color:${accent}">%${rate.toFixed(0)}</span><span class="cec">${k}/${N}</span></div>
+      <div class="cbar"><div class="cfill" style="width:${Math.min(100,rate)}%;background:${accent}"></div><div class="cbase" style="left:${Math.min(100,base)}%"></div></div>
+      <div class="cmeta">kat ${kat.toFixed(1)}× · alt %${lb.toFixed(0)} · ort %${base.toFixed(0)}</div>
+    </div>`;
+  };
+  const V='var(--fhmore)', E='var(--u25)';
+  const iyHtml=crow('KG var','iki takım da gol',cnt(r=>r[IE]>=1&&r[ID]>=1),biyKG,V)
+    +crow('Üst 0,5','≥1 gol',cnt(r=>r[IE]+r[ID]>=1),biy05,V)
+    +crow('Üst 1,5','≥2 gol',cnt(r=>r[IE]+r[ID]>=2),biy15,V);
+  const msHtml=crow('KG var','iki takım da gol',cnt(r=>r[ME]>=1&&r[MD]>=1),bmsKG,E)
+    +crow('Üst 0,5','≥1 gol',cnt(r=>r[ME]+r[MD]>=1),bms05,E)
+    +crow('Üst 1,5','≥2 gol',cnt(r=>r[ME]+r[MD]>=2),bms15,E)
+    +crow('Üst 2,5','≥3 gol',cnt(r=>r[ME]+r[MD]>=3),bms25,E)
+    +crow('Üst 3,5','≥4 gol',cnt(r=>r[ME]+r[MD]>=4),bms35,E);
+
   const hmax=Math.max(...hist,1);
   const labels=['0','1','2','3','4+'];
   const histHtml=hist.map((v,i)=>{
@@ -304,15 +341,17 @@ function compute(){
   }).join('');
 
   const esc=s=>(''+s).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
-  const res=m=>m[ME]>m[MD]?'1':(m[ME]<m[MD]?'2':'0');
   const listHtml=matched.slice().sort((p,q)=>q[SH]-p[SH]).map(m=>{
     const iy=m[IE]+'-'+m[ID], ms=m[ME]+'-'+m[MD];
     return `<div class="mrow"><span class="mt">${esc(m[TEAM]||'—')}</span><span class="mr">İY ${iy} · <b>MS ${ms}</b></span></div>`;
   }).join('');
 
-  body.innerHTML=`<div class="avg"><span class="av">${avg.toFixed(2)}</span><span class="al">ortalama 2. yarı gol</span></div>
+  body.innerHTML=`<div class="section-lbl">İlk yarı</div>${iyHtml}
+    <div class="section-lbl">2. yarı</div>
+    <div class="avg"><span class="av">${avg.toFixed(2)}</span><span class="al">ortalama 2. yarı gol</span></div>
     <div class="overs">${overHtml}</div>
     <div class="histwrap"><div class="histlbl">2. yarı gol dağılımı (maç sayısı · %)</div><div class="hist">${histHtml}</div></div>
+    <div class="section-lbl">Maç sonu</div>${msHtml}
     <div class="listwrap"><div class="histlbl">filtreye uyan maçlar (${N}) · 2. yarı golüne göre sıralı</div><div class="mlist">${listHtml}</div></div>`;
 }
 
