@@ -295,7 +295,6 @@ function compute(){
 
   if(N===0){body.innerHTML='<div class="empty">Bu oran cebinde (bu ilk-yarı filtresiyle) maç yok. <b>Toleransları genişlet</b> ya da oranları yuvarla.</div>';return;}
 
-  const avg=sum/N;
   const o00=N-o05, base00=bN?(bN-b05)/bN*100:0;
   const overs=[
     {cls:'z',key:'Alt 0,5',d:'gol yok',k:o00,base:base00},
@@ -322,23 +321,25 @@ function compute(){
       <div class="cmeta">kat ${kat.toFixed(1)}× · alt %${lb.toFixed(0)} · ort %${base.toFixed(0)}</div>
     </div>`;
   };
-  const V='var(--fhmore)', E='var(--u25)';
-  const iyHtml=crow('KG var','iki takım da gol',cnt(r=>r[IE]>=1&&r[ID]>=1),biyKG,V)
-    +crow('Üst 0,5','≥1 gol',cnt(r=>r[IE]+r[ID]>=1),biy05,V)
-    +crow('Üst 1,5','≥2 gol',cnt(r=>r[IE]+r[ID]>=2),biy15,V);
-  const msHtml=crow('KG var','iki takım da gol',cnt(r=>r[ME]>=1&&r[MD]>=1),bmsKG,E)
-    +crow('Üst 0,5','≥1 gol',cnt(r=>r[ME]+r[MD]>=1),bms05,E)
-    +crow('Üst 1,5','≥2 gol',cnt(r=>r[ME]+r[MD]>=2),bms15,E)
-    +crow('Üst 2,5','≥3 gol',cnt(r=>r[ME]+r[MD]>=3),bms25,E)
-    +crow('Üst 3,5','≥4 gol',cnt(r=>r[ME]+r[MD]>=4),bms35,E);
+  const C0='var(--u00)',C05='var(--u05)',C15='var(--u15)',CE='var(--u25)',V='var(--fhmore)';
+  const iyHtml=crow('Alt 0,5','gol yok',cnt(r=>r[IE]+r[ID]===0),bN-biy05,C0)
+    +crow('Üst 0,5','≥1 gol',cnt(r=>r[IE]+r[ID]>=1),biy05,C05)
+    +crow('Üst 1,5','≥2 gol',cnt(r=>r[IE]+r[ID]>=2),biy15,C15)
+    +crow('KG var','iki takım da gol',cnt(r=>r[IE]>=1&&r[ID]>=1),biyKG,CE);
+  const msHtml=crow('Üst 0,5','≥1 gol',cnt(r=>r[ME]+r[MD]>=1),bms05,V)
+    +crow('Üst 1,5','≥2 gol',cnt(r=>r[ME]+r[MD]>=2),bms15,V)
+    +crow('Üst 2,5','≥3 gol',cnt(r=>r[ME]+r[MD]>=3),bms25,V)
+    +crow('Üst 3,5','≥4 gol',cnt(r=>r[ME]+r[MD]>=4),bms35,V)
+    +crow('KG var','iki takım da gol',cnt(r=>r[ME]>=1&&r[MD]>=1),bmsKG,V);
 
-  const hmax=Math.max(...hist,1);
   const labels=['0','1','2','3','4+'];
-  const histHtml=hist.map((v,i)=>{
-    const p=v/N*100,h=p,top=(v===hmax&&v>0);
-    return `<div class="hb ${top?'top':''}"><div class="hp">%${p.toFixed(0)}</div>
-      <div class="hbar" style="height:${h}%"></div><div class="hx">${labels[i]}</div><div class="hn">${v}</div></div>`;
-  }).join('');
+  const histBlock=(arr,title)=>{
+    const hm=Math.max(...arr,1);
+    const bars=arr.map((v,i)=>{const p=v/N*100,h=p,top=(v===hm&&v>0);
+      return `<div class="hb ${top?'top':''}"><div class="hp">%${p.toFixed(0)}</div><div class="hbar" style="height:${h}%"></div><div class="hx">${labels[i]}</div><div class="hn">${v}</div></div>`;}).join('');
+    return `<div class="histwrap"><div class="histlbl">${title}</div><div class="hist">${bars}</div></div>`;
+  };
+  const histIY=[0,0,0,0,0]; matched.forEach(r=>histIY[Math.min(r[IE]+r[ID],4)]++);
 
   const esc=s=>(''+s).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
   const listHtml=matched.slice().sort((p,q)=>q[SH]-p[SH]).map(m=>{
@@ -347,10 +348,10 @@ function compute(){
   }).join('');
 
   body.innerHTML=`<div class="section-lbl">İlk yarı</div>${iyHtml}
+    ${histBlock(histIY,'ilk yarı gol dağılımı (maç sayısı · %)')}
     <div class="section-lbl">2. yarı</div>
-    <div class="avg"><span class="av">${avg.toFixed(2)}</span><span class="al">ortalama 2. yarı gol</span></div>
     <div class="overs">${overHtml}</div>
-    <div class="histwrap"><div class="histlbl">2. yarı gol dağılımı (maç sayısı · %)</div><div class="hist">${histHtml}</div></div>
+    ${histBlock(hist,'2. yarı gol dağılımı (maç sayısı · %)')}
     <div class="section-lbl">Maç sonu</div>${msHtml}
     <div class="listwrap"><div class="histlbl">filtreye uyan maçlar (${N}) · 2. yarı golüne göre sıralı</div><div class="mlist">${listHtml}</div></div>`;
 }
